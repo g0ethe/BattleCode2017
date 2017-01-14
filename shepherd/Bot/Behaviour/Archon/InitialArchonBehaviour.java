@@ -40,6 +40,7 @@ public class InitialArchonBehaviour extends ArchonBehaviour {
 	public void execute() throws GameActionException {
 		if(archon == null) archon = executer.getController();
 		if(shouldHireGardener()) hireGardener();
+		executer.headlessChicken();
 		Clock.yield();
 	}
 
