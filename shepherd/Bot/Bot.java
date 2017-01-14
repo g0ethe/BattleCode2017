@@ -1,6 +1,11 @@
 package shepherd.Bot;
 
+
+import java.util.List;
+
+import battlecode.common.Direction;
 import battlecode.common.GameActionException;
+import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 import shepherd.Bot.Behaviour.Behaviour;
 import shepherd.Bot.Utilities.NavigationSystem;
@@ -18,6 +23,7 @@ public abstract class Bot {
 
 	public RobotController getController() { return controller; }
 
+
 	public void run() throws GameActionException {
 		while(true) {
 			behaviour = getBehaviour();
@@ -25,5 +31,25 @@ public abstract class Bot {
 			behaviour.execute();
 		}
 	}
+
+
+	public void headlessChicken() throws GameActionException {
+		float random = (float)(Math.random()*360);
+		if(controller.canMove(Direction.getEast().rotateLeftDegrees(random))) controller.move(Direction.getEast().rotateLeftDegrees(random));
+	}
+
+
+	public MapLocation getNearest(List<MapLocation> locations) {
+		float minDist = Float.MAX_VALUE;
+		MapLocation nearest = null;
+		for(MapLocation loc : locations) {
+			if(controller.getLocation().distanceTo(loc) < minDist) {
+				nearest = loc;
+				minDist = controller.getLocation().distanceTo(loc);
+			}
+		}
+		return nearest;
+	}
+
 
 }
