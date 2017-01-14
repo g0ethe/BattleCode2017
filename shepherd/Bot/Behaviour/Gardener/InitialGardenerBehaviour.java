@@ -3,6 +3,7 @@ package shepherd.Bot.Behaviour.Gardener;
 import battlecode.common.Clock;
 import battlecode.common.Direction;
 import battlecode.common.GameActionException;
+import battlecode.common.GameConstants;
 import battlecode.common.RobotController;
 import battlecode.common.RobotType;
 import battlecode.common.TreeInfo;
@@ -20,7 +21,7 @@ public class InitialGardenerBehaviour extends GardenerBehaviour{
 
 		waterBulletTrees(); // finds and waters tree that needs it
 
-		donate();
+		donate(); // randomly donate some bullets to win at least some matches
 
 		Clock.yield();
 	}
@@ -66,7 +67,8 @@ public class InitialGardenerBehaviour extends GardenerBehaviour{
 
 
 	public void donate() throws GameActionException {
-		if(gardener.getTreeCount() >= 2 && gardener.getTeamBullets() >= 10) gardener.donate((int)(gardener.getTeamBullets() / 10) * 10);
+		if(gardener.getTreeCount() >= 3 && gardener.getTeamBullets() >= 10 + GameConstants.BULLET_TREE_COST)
+			gardener.donate((int)((gardener.getTeamBullets() - GameConstants.BULLET_TREE_COST) / 10) * 10);
 	}
 
 }
