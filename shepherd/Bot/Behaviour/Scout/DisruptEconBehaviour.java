@@ -10,6 +10,7 @@ import battlecode.common.RobotInfo;
 import battlecode.common.RobotType;
 import battlecode.common.TreeInfo;
 import shepherd.Bot.Utilities.Geometry;
+import shepherd.Bot.Utilities.Util;
 
 
 /*
@@ -81,7 +82,7 @@ public class DisruptEconBehaviour extends ScoutBehaviour {
 		// and memorize locations and IDs of sensed gardeners and archons
 		RobotInfo[] nearbyHostileRobots = senseHostileRobots();
 		saveArchonGardenerLocations(nearbyHostileRobots);
-		RobotInfo lowestGardener = getLowestOfTypeFromList(RobotType.GARDENER, nearbyHostileRobots);
+		RobotInfo lowestGardener = Util.getLowestOfTypeFromList(RobotType.GARDENER, nearbyHostileRobots);
 		if(lowestGardener != null) return lowestGardener;
 
 		// get nearest hostile bullet tree, to find gardener there
@@ -94,7 +95,7 @@ public class DisruptEconBehaviour extends ScoutBehaviour {
 		if(nearestGardenerLocation != null) return nearestGardenerLocation;
 
 		// get any hostile archon that has been sensed this turn
-		RobotInfo lowestArchon = getLowestOfTypeFromList(RobotType.ARCHON, nearbyHostileRobots);
+		RobotInfo lowestArchon = Util.getLowestOfTypeFromList(RobotType.ARCHON, nearbyHostileRobots);
 		if(lowestArchon != null) return lowestArchon;
 
 		// get nearest location from already sensed archon locations
@@ -106,21 +107,6 @@ public class DisruptEconBehaviour extends ScoutBehaviour {
 		return nearestSpawnLocation;
 	}
 
-
-	/*
-	 * returns the robot with the lowest amount of health of the given type from given array
-	 */
-	private RobotInfo getLowestOfTypeFromList(RobotType type, RobotInfo[] robots) {
-		RobotInfo lowest = null;
-		double minHP = Double.MAX_VALUE;
-		for(RobotInfo robot : robots) {
-			if(robot.getType() == type && robot.getHealth() < minHP) {
-				lowest = robot;
-				minHP = robot.getHealth();
-			}
-		}
-		return lowest;
-	}
 
 
 	/*
