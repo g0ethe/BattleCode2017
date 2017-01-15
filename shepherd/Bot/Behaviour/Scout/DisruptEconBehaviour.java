@@ -1,7 +1,6 @@
 package shepherd.Bot.Behaviour.Scout;
 
 import java.util.ArrayList;
-import java.util.List;
 
 import battlecode.common.BodyInfo;
 import battlecode.common.Clock;
@@ -10,6 +9,8 @@ import battlecode.common.MapLocation;
 import battlecode.common.RobotInfo;
 import battlecode.common.RobotType;
 import battlecode.common.TreeInfo;
+import shepherd.Bot.Utilities.Geometry;
+
 
 /*
  * Goal: Find and kill as many hostile gardeners as possible, while trying to stay alive
@@ -85,11 +86,11 @@ public class DisruptEconBehaviour extends ScoutBehaviour {
 
 		// get nearest hostile bullet tree, to find gardener there
 		TreeInfo[] nearbyHostileTrees = senseHostileTrees();
-		TreeInfo nearestHostileTree = getNearest(nearbyHostileTrees, scout.getLocation());
+		TreeInfo nearestHostileTree = Geometry.getNearest(nearbyHostileTrees, scout.getLocation());
 		if(nearestHostileTree != null) return nearestHostileTree;
 
 		// get nearest location from already sensed gardener locations
-		MapLocation nearestGardenerLocation = getNearest(savedGardenerLocations, scout.getLocation());
+		MapLocation nearestGardenerLocation = Geometry.getNearest(savedGardenerLocations, scout.getLocation());
 		if(nearestGardenerLocation != null) return nearestGardenerLocation;
 
 		// get any hostile archon that has been sensed this turn
@@ -97,11 +98,11 @@ public class DisruptEconBehaviour extends ScoutBehaviour {
 		if(lowestArchon != null) return lowestArchon;
 
 		// get nearest location from already sensed archon locations
-		MapLocation nearestArchonLocation = getNearest(savedArchonLocations, scout.getLocation());
+		MapLocation nearestArchonLocation = Geometry.getNearest(savedArchonLocations, scout.getLocation());
 		if(nearestArchonLocation != null) return nearestArchonLocation;
 
 		// get the nearest spawning point
-		MapLocation nearestSpawnLocation = getNearest(scout.getInitialArchonLocations(scout.getTeam().opponent()), scout.getLocation());
+		MapLocation nearestSpawnLocation = Geometry.getNearest(scout.getInitialArchonLocations(scout.getTeam().opponent()), scout.getLocation());
 		return nearestSpawnLocation;
 	}
 
@@ -119,48 +120,6 @@ public class DisruptEconBehaviour extends ScoutBehaviour {
 			}
 		}
 		return lowest;
-	}
-
-
-	/*
-	 * returns the nearest thing from given list or array to the relative location
-	 */
-	private MapLocation getNearest(List<MapLocation> locations, MapLocation relativeLocation) throws GameActionException {
-		float minDist = Float.MAX_VALUE;
-		MapLocation nearest = null;
-		for(int index = 0; index < locations.size(); index++) {
-			MapLocation loc = locations.get(index);
-			float dist = relativeLocation.distanceTo(loc);
-			if(dist < minDist) {
-				nearest = loc;
-				minDist = dist;
-			}
-		}
-		return nearest;
-	}
-	private TreeInfo getNearest(TreeInfo[] trees, MapLocation relativeLocation) throws GameActionException {
-		float minDist = Float.MAX_VALUE;
-		TreeInfo nearest = null;
-		for(TreeInfo tree : trees) {
-			float dist = relativeLocation.distanceTo(tree.location);
-			if(dist < minDist) {
-				nearest = tree;
-				minDist = dist;
-			}
-		}
-		return nearest;
-	}
-	private MapLocation getNearest(MapLocation[] locations, MapLocation relativeLocation) throws GameActionException {
-		float minDist = Float.MAX_VALUE;
-		MapLocation nearest = null;
-		for(MapLocation loc : locations) {
-			float dist = relativeLocation.distanceTo(loc);
-			if(dist < minDist) {
-				nearest = loc;
-				minDist = dist;
-			}
-		}
-		return nearest;
 	}
 
 
