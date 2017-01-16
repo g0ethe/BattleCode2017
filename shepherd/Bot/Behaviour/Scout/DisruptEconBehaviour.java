@@ -57,7 +57,11 @@ public class DisruptEconBehaviour extends ScoutBehaviour {
 		//		 2. attack gardener, if a hit is (almost) guaranteed
 		//		 3. if can still move, move in a way, such that bullets fired at this scout
 		//			will likely travel in the direction of an opponents unit
-
+		//
+		// TODO: clean out-dated information:
+		//		 1. if information is older than (maybe) 10 turns or so
+		//		 2. if saved robot can be assumed to be destroyed
+		//			(when cannot sense robot, although given its speed it should be sensed)
 
 		Clock.yield();
 	}
@@ -106,7 +110,6 @@ public class DisruptEconBehaviour extends ScoutBehaviour {
 		MapLocation nearestSpawnLocation = Geometry.getNearest(scout.getInitialArchonLocations(scout.getTeam().opponent()), scout.getLocation());
 		return nearestSpawnLocation;
 	}
-
 
 
 	/*
