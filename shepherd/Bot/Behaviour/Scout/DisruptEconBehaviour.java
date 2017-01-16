@@ -45,7 +45,6 @@ public class DisruptEconBehaviour extends ScoutBehaviour {
 	ArrayList<MapLocation> savedGardenerLocations = new ArrayList<MapLocation>(10);
 
 
-
 	public void execute() throws GameActionException {
 		initialize();
 
@@ -57,12 +56,8 @@ public class DisruptEconBehaviour extends ScoutBehaviour {
 		//		 2. attack gardener, if a hit is (almost) guaranteed
 		//		 3. if can still move, move in a way, such that bullets fired at this scout
 		//			will likely travel in the direction of an opponents unit
-		//
-		// TODO: clean out-dated information:
-		//		 1. if information is older than (maybe) 10 turns or so
-		//		 2. if saved robot can be assumed to be destroyed
-		//			(when cannot sense robot, although given its speed it should be sensed)
 
+		cleanOutdatedInformation();
 		Clock.yield();
 	}
 
@@ -151,6 +146,70 @@ public class DisruptEconBehaviour extends ScoutBehaviour {
 					turnUpdatedGardener.set(index, scout.getRoundNum());
 				}
 			}
+		}
+	}
+
+
+	/*
+	 * removes stored information about sensed archons and gardeners,
+	 * once the information can be assumed to be out of date,
+	 * i.e. once the last update was 20 turns or more before,
+	 * or the saved robot can be assumed to be destroyed
+	 * (when cannot sense robot, although given its speed it should be sensed)
+	 */
+	private void cleanOutdatedInformation() throws GameActionException {
+		int maxSaveTurns = 20;
+		ArrayList<Integer> indices = new ArrayList<Integer>();
+
+		// clean all information about archons that is older than maxSaveTurns
+		for(int index = 0; index < turnUpdatedArchon.size(); index++)
+			if(turnUpdatedArchon.get(index) + maxSaveTurns < scout.getRoundNum()) indices.add(index);
+		for(int index : indices) {
+			turnUpdatedArchon.remove(index);
+			savedArchonIDs.remove(index);
+			savedArchonLocations.remove(index);
+		}
+		indices.clear();
+
+		// clean all information about gardeners that is older than maxSaveTurns
+		for(int index = 0; index < turnUpdatedGardener.size(); index++)
+			if(turnUpdatedGardener.get(index) + maxSaveTurns < scout.getRoundNum()) indices.add(index);
+		for(int index : indices) {
+			turnUpdatedGardener.remove(index);
+			savedGardenerIDs.remove(index);
+			savedGardenerLocations.remove(index);
+		}
+		indices.clear();
+
+		// if saved gardener can be assumed to be destroyed, clean stored data
+		for(int index = 0; index < savedGardenerLocations.size(); index++) {
+			MapLocation gardenerLocation = savedGardenerLocations.get(index);
+			if(scout.canSenseLocation(gardenerLocation)) {
+				int turnsSince = scout.getRoundNum() - turnUpdatedGardener.get(index);
+				float maxMoveDistance = turnsSince * RobotType.GARDENER.strideRadius;
+				if(scout.canSenseAllOfCircle(gardenerLocation, maxMoveDistance) && !scout.canSenseRobot(savedGardenerIDs.get(index))) indices.add(index);
+			}
+		}
+		for(int index : indices) {
+			turnUpdatedGardener.remove(index);
+			savedGardenerIDs.remove(index);
+			savedGardenerLocations.remove(index);
+		}
+		indices.clear();
+
+		// if saved archon can be assumed to be destroyed, clean stored data
+		for(int index = 0; index < savedArchonLocations.size(); index++) {
+			MapLocation archonLocation = savedArchonLocations.get(index);
+			if(scout.canSenseLocation(archonLocation)) {
+				int turnsSince = scout.getRoundNum() - turnUpdatedArchon.get(index);
+				float maxMoveDistance = turnsSince * RobotType.ARCHON.strideRadius;
+				if(scout.canSenseAllOfCircle(archonLocation, maxMoveDistance) && !scout.canSenseRobot(savedArchonIDs.get(index))) indices.add(index);
+			}
+		}
+		for(int index : indices) {
+			turnUpdatedArchon.remove(index);
+			savedArchonIDs.remove(index);
+			savedArchonLocations.remove(index);
 		}
 	}
 
