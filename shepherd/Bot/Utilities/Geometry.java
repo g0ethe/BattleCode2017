@@ -96,5 +96,37 @@ public class Geometry {
 	}
 
 
+	/*
+	 * returns closest point from circle center to given line segment, iff line segment intersects with given circle
+	 *
+	 * returns null if no intersection exists
+	 *
+	 * Line segment is defined by points A and B, circle is defined by center C and radius r
+	 */
+	public static MapLocation getClosestPointFromCircleCenterToIntersectingLineSegment(MapLocation A, MapLocation B, MapLocation C, float r) {
+		float threshhold = Float.MIN_NORMAL * 32; // workaround to deal with float-precision
+		if(A == null || B == null || C == null || r <= 0) return null;
+
+		// calculate point L with CL perpendicular to AB
+		float DAB = A.distanceTo(B);
+		float ABx = ((B.x - A.x) / DAB), ABy = ((B.y - A.y) / DAB);
+		float t = ABx*(C.x - A.x) + ABy*(C.y - A.y);
+		float Lx = t*ABx + A.x, Ly = t*ABy + A.y;
+		MapLocation L = new MapLocation(Lx, Ly);
+
+		// check if L is between A and B, and |CL| <= r
+		float DAL = A.distanceTo(L);
+		float ALx = ((L.x - A.x) / DAL), ALy = ((L.y - A.y) / DAL);
+
+		if ((DAL <= DAB) 											  // distance from A to L is not greater than distance from A to B
+			&& (ALx - ABx <= threshhold) && (ALy - ABy <= threshhold) // direction from A to L is roughly equal to direction from A to B
+			&& (L.distanceTo(C) <= r)) 								  // L is inside, or on the given circle
+				return L;
+
+		return null;
+	}
+
+
+
 
 }
