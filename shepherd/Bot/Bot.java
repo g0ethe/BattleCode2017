@@ -1,11 +1,10 @@
 package shepherd.Bot;
 
 
-import java.util.List;
+
 
 import battlecode.common.Direction;
 import battlecode.common.GameActionException;
-import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 import shepherd.Bot.Behaviour.Behaviour;
 import shepherd.Bot.Utilities.NavigationSystem;

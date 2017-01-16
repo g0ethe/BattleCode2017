@@ -2,6 +2,7 @@ package shepherd.Bot.Utilities;
 
 import java.util.List;
 
+import battlecode.common.BodyInfo;
 import battlecode.common.GameActionException;
 import battlecode.common.MapLocation;
 import battlecode.common.TreeInfo;
@@ -28,6 +29,28 @@ public class Geometry {
 			return dy < r;
 		}
 		else return (L1x - Cx)*(L1x - Cx) + (L1y - Cy)*(L1y - Cy) <= r*r;
+	}
+
+
+	/*
+	 * returns the distance between the borders of two given circles,
+	 * defined by their radii and centers,
+	 * or by body info
+	 */
+	public static float distanceBetween(MapLocation centerA, float radiusA, MapLocation centerB, float radiusB) {
+		if(centerA == null || centerB == null) return -1;
+		return centerA.distanceTo(centerB) - radiusA - radiusB;
+	}
+	public static float distanceBetween(MapLocation center, float radius, BodyInfo body) {
+		if(body == null) return -1;
+		return distanceBetween(center, radius, body.getLocation(), body.getRadius());
+	}
+	public static float distanceBetween(BodyInfo body, MapLocation center, float radius) {
+		return distanceBetween(center, radius, body);
+	}
+	public static float distanceBetween(BodyInfo bodyA, BodyInfo bodyB) {
+		if(bodyA == null) return -1;
+		return distanceBetween(bodyA.getLocation(), bodyA.getRadius(), bodyB);
 	}
 
 

@@ -1,8 +1,10 @@
 package shepherd.Bot.Behaviour.Scout;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import battlecode.common.BodyInfo;
+import battlecode.common.BulletInfo;
 import battlecode.common.Clock;
 import battlecode.common.GameActionException;
 import battlecode.common.MapLocation;
@@ -20,23 +22,6 @@ import shepherd.Bot.Utilities.Util;
 
 public class DisruptEconBehaviour extends ScoutBehaviour {
 
-	private void debug(Object disruptionTarget) throws GameActionException {
-		if(disruptionTarget == null) System.out.println("Null.");
-		else if(disruptionTarget instanceof RobotInfo) System.out.println("Target is Robot: " + ((RobotInfo)disruptionTarget).ID);
-		else if(disruptionTarget instanceof TreeInfo) System.out.println("Target is Tree: " + ((TreeInfo)disruptionTarget).ID);
-		else if(disruptionTarget instanceof MapLocation) System.out.println("Target is Location: (" + ((MapLocation)disruptionTarget).x + ", " + ((MapLocation)disruptionTarget).y);
-		else System.out.println("Wat.");
-
-		if(disruptionTarget != null) {
-			MapLocation targetLocation = null;
-			if(disruptionTarget instanceof MapLocation) targetLocation = ((MapLocation)disruptionTarget);
-			else if(disruptionTarget instanceof BodyInfo) targetLocation = ((BodyInfo)disruptionTarget).getLocation();
-
-			if(targetLocation != null) scout.setIndicatorLine(scout.getLocation(), targetLocation, 255, 0, 0);
-		}
-	}
-
-
 	ArrayList<Integer> turnUpdatedArchon = new ArrayList<Integer>(10);
 	ArrayList<Integer> turnUpdatedGardener = new ArrayList<Integer>(10);
 	ArrayList<Integer> savedArchonIDs = new ArrayList<Integer>(10);
@@ -47,18 +32,83 @@ public class DisruptEconBehaviour extends ScoutBehaviour {
 
 	public void execute() throws GameActionException {
 		initialize();
-
-		// gets robot info, tree info, or map location as a target to find enemy gardeners
 		Object disruptionTarget = getDistruptionTarget();
-		debug(disruptionTarget);
+		moveTowardsTargetAvoidingDamage(disruptionTarget);
 
-		// TODO: 1. move towards disruption target, while trying to avoid getting damaged
-		//		 2. attack gardener, if a hit is (almost) guaranteed
+		//TODO:	2. attack gardener, if a hit is (almost) guaranteed
 		//		 3. if can still move, move in a way, such that bullets fired at this scout
 		//			will likely travel in the direction of an opponents unit
 
 		cleanOutdatedInformation();
 		Clock.yield();
+	}
+
+
+	/*
+	 * moves towards given target, while trying to avoid taking damage
+	 *
+	 * by staying out of range (stride + attack) of hostile lumbers,
+	 * and by dodging (at least some) bullets.
+	 *
+	 */
+	private void moveTowardsTargetAvoidingDamage(Object target) throws GameActionException {
+		MapLocation goal = (target instanceof MapLocation) ? (MapLocation)target : (target instanceof BodyInfo) ? ((BodyInfo)target).getLocation() : null;
+		System.out.println("Goal: " + goal); // debug info to console
+
+		// sense bullets that might hit us at the end of this round
+		BulletInfo[] possiblyHittingBullets = getPossiblyHittingBullets();
+		for(BulletInfo bullet : possiblyHittingBullets) System.out.println("Bullet: " + bullet.ID); // debug info to console
+
+		// sense nearby hostiles that could still attack us this round
+		List<RobotInfo> possiblyAttackingHostiles = getPossiblyAttackingHostiles();
+		for(RobotInfo robot : possiblyAttackingHostiles) System.out.println("Robot:  " + robot.ID); // debug info to console
+
+		// TODO:
+		// find direction which will dodge as many bullets as possible,
+		// which will keep us out of range of as many hostile units as possible,
+		// and which will move us closer towards our goal location
+	}
+
+
+	/*
+	 * returns enemy units that are in attack range
+	 */
+	private List<RobotInfo> getPossiblyAttackingHostiles() throws GameActionException {
+
+		// get all hostile units in sensor range
+		RobotInfo[] hostiles = senseHostileRobots();
+		ArrayList<RobotInfo> dangerZoneEnemies = new ArrayList<RobotInfo>();
+
+		// check if enemy can attack at all and, if so,
+		// check if it could attack us if we happen to move in its direction
+		for(RobotInfo enemy : hostiles) {
+			float attackRange = Util.getMaxAttackRange(enemy.type);
+			if(attackRange > 0) {
+				float distance = Geometry.distanceBetween(scout.getLocation(), scout.getType().bodyRadius, enemy);
+				float maxMoveThisTurn = (scout.hasMoved()) ? 0 : scout.getType().strideRadius;
+				if(distance - maxMoveThisTurn <= attackRange) dangerZoneEnemies.add(enemy);
+			}
+		}
+
+		// return all units that could hurt us if we walk incorrectly
+		return dangerZoneEnemies;
+	}
+
+
+	/*
+	 * returns all bullets that might hit scout this turn,
+	 * taking into consideration scouts maximum stride radius,
+	 * a bullets maximum speed, a scouts body radius,
+	 * and the minimum positive offset
+	 * (conservative calculation)
+	 */
+	private BulletInfo[] getPossiblyHittingBullets() throws GameActionException {
+		float myMaxRadius = scout.getType().bodyRadius + scout.getType().strideRadius;
+		float maxBulletSpeed = Util.getMaxBulletSpeed();
+		float maxBulletSensorRadius = Float.MIN_NORMAL + myMaxRadius + maxBulletSpeed;
+		if(maxBulletSensorRadius > scout.getType().bulletSightRadius) maxBulletSensorRadius = scout.getType().bulletSightRadius;
+
+		return scout.senseNearbyBullets(maxBulletSensorRadius);
 	}
 
 
