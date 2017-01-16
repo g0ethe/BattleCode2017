@@ -7,8 +7,10 @@ import battlecode.common.GameActionException;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 import battlecode.common.RobotInfo;
+import battlecode.common.TreeInfo;
 import shepherd.Bot.Scout;
 import shepherd.Bot.Behaviour.Behaviour;
+import shepherd.Bot.Utilities.Geometry;
 
 public abstract class ScoutBehaviour extends Behaviour {
 
@@ -29,8 +31,8 @@ public abstract class ScoutBehaviour extends Behaviour {
 	protected RobotController getController() {
 		return ((Scout)executer).getController();
 	}
-	protected MapLocation getNearestFromList(List<MapLocation> locationList) {
-		return executer.getNearest(neutralTreeLocations);
+	protected MapLocation getNearestFromList(List<MapLocation> locationList) throws GameActionException {
+		return Geometry.getNearest(neutralTreeLocations, scout.getLocation());
 	}
 	protected int getLastHostileSenseTurn() {
 		return ((Scout)executer).lastHostileSenseTurn;
@@ -48,5 +50,25 @@ public abstract class ScoutBehaviour extends Behaviour {
 	protected RobotInfo getNearestHostileGardenerOrArchon() throws GameActionException {
 		return ((Scout)executer).getNearestHostileGardenerOrArchon();
 	}
+	protected RobotInfo[] senseHostileRobots() throws GameActionException {
+		if(((Scout)executer).lastHostileSenseTurn < getController().getRoundNum()) {
+			setNearbyHostileUnits(getController().senseNearbyRobots(getController().getType().sensorRadius, getController().getTeam().opponent()));
+		}
+		return getNearbyHostileUnits();
+	}
+	protected void setNearbyHostileTrees(TreeInfo[] hostileTrees) {
+		((Scout)executer).lastTreeSenseTurn = getController().getRoundNum();
+		((Scout)executer).nearbyHostileTrees = hostileTrees;
+	}
+	protected TreeInfo[] getNearbyHostileTrees() {
+		return ((Scout)executer).nearbyHostileTrees;
+	}
+	protected TreeInfo[] senseHostileTrees() throws GameActionException {
+		if(((Scout)executer).lastTreeSenseTurn < getController().getRoundNum()) {
+			setNearbyHostileTrees(getController().senseNearbyTrees(getController().getType().sensorRadius, getController().getTeam().opponent()));
+		}
+		return getNearbyHostileTrees();
+	}
+
 
 }

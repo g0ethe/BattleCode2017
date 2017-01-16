@@ -39,17 +39,5 @@ public abstract class Bot {
 	}
 
 
-	public MapLocation getNearest(List<MapLocation> locations) {
-		float minDist = Float.MAX_VALUE;
-		MapLocation nearest = null;
-		for(MapLocation loc : locations) {
-			if(controller.getLocation().distanceTo(loc) < minDist) {
-				nearest = loc;
-				minDist = controller.getLocation().distanceTo(loc);
-			}
-		}
-		return nearest;
-	}
-
 
 }

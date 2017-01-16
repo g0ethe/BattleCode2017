@@ -7,6 +7,7 @@ import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 import battlecode.common.RobotInfo;
 import battlecode.common.RobotType;
+import battlecode.common.TreeInfo;
 import shepherd.Bot.Behaviour.Behaviour;
 import shepherd.Bot.Behaviour.Scout.DisruptEconBehaviour;
 import shepherd.Bot.Behaviour.Scout.InitialScoutBehaviour;
@@ -15,7 +16,9 @@ public class Scout extends Bot {
 
 	public ArrayList<MapLocation> neutralTreeLocations = new ArrayList<MapLocation>();
 	public MapLocation averageEnemystartingLocation;
+	public TreeInfo[] nearbyHostileTrees;
 	public RobotInfo[] nearbyHostileUnits;
+	public int lastTreeSenseTurn = -1;
 	public int lastHostileSenseTurn = -1;
 
 	RobotController scout;
