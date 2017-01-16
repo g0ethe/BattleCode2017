@@ -1,12 +1,13 @@
 package shepherd.Bot.Behaviour.Scout;
 
 import java.util.ArrayList;
-import java.util.List;
 
 import battlecode.common.BodyInfo;
 import battlecode.common.BulletInfo;
 import battlecode.common.Clock;
+import battlecode.common.Direction;
 import battlecode.common.GameActionException;
+import battlecode.common.GameConstants;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotInfo;
 import battlecode.common.RobotType;
@@ -35,7 +36,7 @@ public class DisruptEconBehaviour extends ScoutBehaviour {
 		Object disruptionTarget = getDistruptionTarget();
 		moveTowardsTargetAvoidingDamage(disruptionTarget);
 
-		//TODO:	2. attack gardener, if a hit is (almost) guaranteed
+		// TODO: 2. attack gardener, if a hit is (almost) guaranteed
 		//		 3. if can still move, move in a way, such that bullets fired at this scout
 		//			will likely travel in the direction of an opponents unit
 
@@ -53,62 +54,23 @@ public class DisruptEconBehaviour extends ScoutBehaviour {
 	 */
 	private void moveTowardsTargetAvoidingDamage(Object target) throws GameActionException {
 		MapLocation goal = (target instanceof MapLocation) ? (MapLocation)target : (target instanceof BodyInfo) ? ((BodyInfo)target).getLocation() : null;
-		System.out.println("Goal: " + goal); // debug info to console
 
 		// sense bullets that might hit us at the end of this round
-		BulletInfo[] possiblyHittingBullets = getPossiblyHittingBullets();
-		for(BulletInfo bullet : possiblyHittingBullets) System.out.println("Bullet: " + bullet.ID); // debug info to console
+		BulletInfo[] nearbyBullets = scout.senseNearbyBullets(scout.getType().bulletSightRadius);
 
 		// sense nearby hostiles that could still attack us this round
-		List<RobotInfo> possiblyAttackingHostiles = getPossiblyAttackingHostiles();
-		for(RobotInfo robot : possiblyAttackingHostiles) System.out.println("Robot:  " + robot.ID); // debug info to console
+		RobotInfo[] nearbyHostiles = senseHostileRobots();
 
-		// TODO:
-		// find direction which will dodge as many bullets as possible,
-		// which will keep us out of range of as many hostile units as possible,
-		// and which will move us closer towards our goal location
-	}
-
-
-	/*
-	 * returns enemy units that are in attack range
-	 */
-	private List<RobotInfo> getPossiblyAttackingHostiles() throws GameActionException {
-
-		// get all hostile units in sensor range
-		RobotInfo[] hostiles = senseHostileRobots();
-		ArrayList<RobotInfo> dangerZoneEnemies = new ArrayList<RobotInfo>();
-
-		// check if enemy can attack at all and, if so,
-		// check if it could attack us if we happen to move in its direction
-		for(RobotInfo enemy : hostiles) {
-			float attackRange = Util.getMaxAttackRange(enemy.type);
-			if(attackRange > 0) {
-				float distance = Geometry.distanceBetween(scout.getLocation(), scout.getType().bodyRadius, enemy);
-				float maxMoveThisTurn = (scout.hasMoved()) ? 0 : scout.getType().strideRadius;
-				if(distance - maxMoveThisTurn <= attackRange) dangerZoneEnemies.add(enemy);
+		// test shit: dodge the first fucking bullet as god damn close as possible
+		for(BulletInfo bullet : nearbyBullets) {
+			MapLocation hitLocation = Geometry.getHitLocation(bullet, scout);
+			if(hitLocation != null) {
+				Direction dir = hitLocation.directionTo(scout.getLocation());
+				float dist = scout.getType().bodyRadius - scout.getLocation().distanceTo(hitLocation) + GameConstants.BULLET_SPAWN_OFFSET;
+				if(dir != null && !scout.hasMoved() && scout.canMove(dir, dist)) scout.move(dir, dist);
 			}
 		}
 
-		// return all units that could hurt us if we walk incorrectly
-		return dangerZoneEnemies;
-	}
-
-
-	/*
-	 * returns all bullets that might hit scout this turn,
-	 * taking into consideration scouts maximum stride radius,
-	 * a bullets maximum speed, a scouts body radius,
-	 * and the minimum positive offset
-	 * (conservative calculation)
-	 */
-	private BulletInfo[] getPossiblyHittingBullets() throws GameActionException {
-		float myMaxRadius = scout.getType().bodyRadius + scout.getType().strideRadius;
-		float maxBulletSpeed = Util.getMaxBulletSpeed();
-		float maxBulletSensorRadius = Float.MIN_NORMAL + myMaxRadius + maxBulletSpeed;
-		if(maxBulletSensorRadius > scout.getType().bulletSightRadius) maxBulletSensorRadius = scout.getType().bulletSightRadius;
-
-		return scout.senseNearbyBullets(maxBulletSensorRadius);
 	}
 
 
@@ -262,7 +224,6 @@ public class DisruptEconBehaviour extends ScoutBehaviour {
 			savedArchonLocations.remove(index);
 		}
 	}
-
 
 
 }
