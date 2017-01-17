@@ -7,7 +7,6 @@ import battlecode.common.BulletInfo;
 import battlecode.common.Clock;
 import battlecode.common.Direction;
 import battlecode.common.GameActionException;
-import battlecode.common.GameConstants;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotInfo;
 import battlecode.common.RobotType;
@@ -34,43 +33,112 @@ public class DisruptEconBehaviour extends ScoutBehaviour {
 	public void execute() throws GameActionException {
 		initialize();
 		Object disruptionTarget = getDistruptionTarget();
-		moveTowardsTargetAvoidingDamage(disruptionTarget);
-
-		// TODO: 2. attack gardener, if a hit is (almost) guaranteed
-		//		 3. if can still move, move in a way, such that bullets fired at this scout
-		//			will likely travel in the direction of an opponents unit
-
+		dodgeTowards(disruptionTarget);
+		attack(disruptionTarget);
 		cleanOutdatedInformation();
 		Clock.yield();
 	}
 
 
 	/*
-	 * moves towards given target, while trying to avoid taking damage
-	 *
-	 * by staying out of range (stride + attack) of hostile lumbers,
-	 * and by dodging (at least some) bullets.
-	 *
+	 * calls the correct method for attacking, depending on type of target
 	 */
-	private void moveTowardsTargetAvoidingDamage(Object target) throws GameActionException {
-		MapLocation goal = (target instanceof MapLocation) ? (MapLocation)target : (target instanceof BodyInfo) ? ((BodyInfo)target).getLocation() : null;
+	private void attack(Object target) throws GameActionException {
+		if(target instanceof TreeInfo) attackTree((TreeInfo)target);
+		else if(target instanceof RobotInfo) attackRobot((RobotInfo)target);
+		else if(target instanceof MapLocation) attackLocation((MapLocation)target);
+	}
 
-		// sense bullets that might hit us at the end of this round
-		BulletInfo[] nearbyBullets = scout.senseNearbyBullets(scout.getType().bulletSightRadius);
 
-		// sense nearby hostiles that could still attack us this round
-		RobotInfo[] nearbyHostiles = senseHostileRobots();
+	/*
+	 * TODO
+	 */
+	private void attackTree(TreeInfo target) throws GameActionException {
+		if(scout.canFireSingleShot() && !scout.hasAttacked()) {
+			scout.fireSingleShot(scout.getLocation().directionTo(target.location));
+		}
+	}
 
-		// test shit: dodge the first fucking bullet as god damn close as possible
-		for(BulletInfo bullet : nearbyBullets) {
-			MapLocation hitLocation = Geometry.getHitLocation(bullet, scout);
-			if(hitLocation != null) {
-				Direction dir = hitLocation.directionTo(scout.getLocation());
-				float dist = scout.getType().bodyRadius - scout.getLocation().distanceTo(hitLocation) + GameConstants.BULLET_SPAWN_OFFSET;
-				if(dir != null && !scout.hasMoved() && scout.canMove(dir, dist)) scout.move(dir, dist);
+
+	/*
+	 * TODO
+	 */
+	private void attackRobot(RobotInfo target) throws GameActionException {
+		if(scout.canFireSingleShot() && !scout.hasAttacked()) {
+			scout.fireSingleShot(scout.getLocation().directionTo(target.location));
+		}
+	}
+
+
+	/*
+	 * TODO
+	 */
+	private void attackLocation(MapLocation target) throws GameActionException {
+		if(scout.canFireSingleShot() && !scout.hasAttacked()) {
+			scout.fireSingleShot(scout.getLocation().directionTo(target));
+		}
+	}
+
+
+	/*
+	 * dodges bullets and keeps away from attacking hostile units,
+	 * while trying to get closer to given target
+	 */
+	private void dodgeTowards(Object target) throws GameActionException {
+		float bulletSensorRange = Util.getMaxBulletSpeed() + scout.getType().bodyRadius + scout.getType().strideRadius;
+		MapLocation goal = (target instanceof MapLocation) ? (MapLocation)target : ((BodyInfo)target).getLocation();
+
+		BulletInfo[] nearbyBullets = scout.senseNearbyBullets(bulletSensorRange);
+		RobotInfo[] nearbyHostiles = getNearbyHostileUnits();
+		Direction dodgeBulletsDirection = getDodgeBulletsDirection(nearbyBullets, target);
+		Direction dodgeHostilesDirection = getDodgeHostilesDirection(nearbyHostiles);
+		Direction dodgeDirection = Geometry.average(dodgeHostilesDirection, dodgeBulletsDirection);
+
+		// TODO: move
+		if(dodgeDirection == null) dodgeDirection = scout.getLocation().directionTo(goal);
+		Direction dir = dodgeDirection;
+		for(int i = 0; i <= 180; i+=2) {
+			if(scout.canMove(dir.rotateLeftDegrees(i))) { scout.move(dir.rotateLeftDegrees(i)); break; }
+			if(scout.canMove(dir.rotateRightDegrees(i))) { scout.move(dir.rotateRightDegrees(i)); break; }
+		}
+	}
+
+
+	/*
+	 * returns a direction in which most bullets will be dodged
+	 * TODO: dodge a bit better - especially don't walk into bullets that are traveling away from you
+	 */
+	private Direction getDodgeBulletsDirection(BulletInfo[] bullets, Object target) throws GameActionException {
+		float dx = 0, dy = 0, count = 0;
+		BulletInfo bullet;
+		for(int i = bullets.length; --i>=0;) {
+			bullet = bullets[i];
+			Direction dir = Geometry.getPerpendicularAwayFromBullet(bullet, scout.getLocation());
+			dx += dir.getDeltaX(1); dy += dir.getDeltaY(1); count++;
+		}
+		if(count == 0) return null;
+		dx /= count; dy /= count;
+		return new Direction(dx, dy);
+	}
+
+
+	/*
+	 * returns a direction away from average location of hostile attacking units
+	 */
+	private Direction getDodgeHostilesDirection(RobotInfo[] enemyUnits) throws GameActionException {
+		float x = 0, y = 0, count = 0;
+		RobotInfo enemy;
+		MapLocation curr = scout.getLocation();
+		for(int i = enemyUnits.length; --i>=0;) {
+			enemy = enemyUnits[i];
+			if(enemy.getType().canAttack() && Util.getMaxAttackRange(enemy.getType()) <= enemy.getLocation().distanceTo(curr)) {
+				x += enemy.getLocation().x;
+				y += enemy.getLocation().y;
+				count++;
 			}
 		}
-
+		if(count == 0) return null;
+		else return new Direction(new MapLocation(x/count, y/count), scout.getLocation());
 	}
 
 
@@ -226,4 +294,20 @@ public class DisruptEconBehaviour extends ScoutBehaviour {
 	}
 
 
+
+
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

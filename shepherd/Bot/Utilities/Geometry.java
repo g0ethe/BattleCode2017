@@ -58,6 +58,36 @@ public class Geometry {
 
 
     /*
+     * returns the center of two given locations
+     */
+    public static MapLocation centerOf(MapLocation... locations) {
+    	float x = 0, y = 0;
+    	for(MapLocation loc : locations) {
+    		x += loc.x; y += loc.y;
+    	}
+    	return new MapLocation(x/locations.length, y/locations.length);
+    }
+
+    /*
+     * returns aaverage direction from given directions
+     */
+    public static Direction average(Direction... dirs) {
+    	float dx = 0, dy = 0, count = 0;
+    	Direction dir;
+    	for(int i = dirs.length; --i>=0;) {
+    		dir = dirs[i];
+    		if(dir != null) {
+    			dx += dir.getDeltaX(1);
+    			dy += dir.getDeltaY(1);
+    			count++;
+    		}
+    	}
+    	if(count == 0) return null;
+    	return new Direction(dx/count, dy/count);
+    }
+
+
+    /*
      * returns the nearest thing from given list or array to the relative location
      */
     public static MapLocation getNearest(List<MapLocation> locations, MapLocation relativeLocation) throws GameActionException {
@@ -99,65 +129,78 @@ public class Geometry {
     }
 
 
+
     /*
-     * returns closest point from circle center to given line segment, iff line segment intersects with given circle
+     * calculates the intersection points of bullet's path and given circle.
      *
-     * returns null if no intersection exists
+     * @param:
+     * BulletInfo bullet - the bullet to check
+     * MapLocation C - center of circle to check against
+     * float r - radius of circle to check against
      *
-     * Line segment is defined by points A and B, circle is defined by center C and radius r
+     * or
+     *
+     * BulletInfo bullet - the bullet to check
+     * BodyInfo body - the body to check against
+     *
+     * or
+     *
+     * BulletInfo bullet - the bullet to check
+     * RobotController rc - robot controller's body to check against
+     *
+     * @Bytecode Costs: 100
      */
-    public static MapLocation getClosestPointFromCircleCenterToIntersectingLineSegment(MapLocation A, MapLocation B, MapLocation C, float r) {
-        float threshhold = Float.MIN_NORMAL * 32; // workaround to deal with float-precision
-        if(A == null || B == null || C == null || r <= 0) return null;
+    public static MapLocation[] intersectionPoints(BulletInfo bullet, MapLocation C, float r) {
+    	float[] lambda = intersectionLambda(bullet, C, r);
+    	if(lambda == null) return new MapLocation[0];
 
-        // calculate point L with CL perpendicular to AB
-        float DAB = A.distanceTo(B);
-        float ABx = ((B.x - A.x) / DAB), ABy = ((B.y - A.y) / DAB);
-        float t = ABx*(C.x - A.x) + ABy*(C.y - A.y);
-        float Lx = t*ABx + A.x, Ly = t*ABy + A.y;
-        MapLocation L = new MapLocation(Lx, Ly);
+    	float t1 = lambda[0], t2 = lambda[1];
+    	int numSolutions = 0;
+    	if(t1 >= 0) numSolutions++;
+    	if(t2 >= 0) numSolutions++;
+    	if(numSolutions == 0) return new MapLocation[0];
 
-        // check if L is between A and B, and |CL| <= r
-        float DAL = A.distanceTo(L);
-        float ALx = ((L.x - A.x) / DAL), ALy = ((L.y - A.y) / DAL);
+    	MapLocation[] intersections = new MapLocation[numSolutions];
+    	if(t1 >= 0 && t2 < 0) intersections[0] = bullet.getLocation().add(bullet.getDir(), t1);
+    	else if(t1 < 0 && t2 >= 0) intersections[0] = bullet.getLocation().add(bullet.getDir(), t2);
+    	else {
+    		intersections[0] = bullet.getLocation().add(bullet.getDir(), t1);
+    		intersections[1] = bullet.getLocation().add(bullet.getDir(), t2);
+    	}
 
-        if ((DAL <= DAB) 											  // distance from A to L is not greater than distance from A to B
-            && (ALx - ABx <= threshhold) && (ALy - ABy <= threshhold) // direction from A to L is roughly equal to direction from A to B
-            && (L.distanceTo(C) <= r)) 								  // L is inside, or on the given circle
-                return L;
+    	return intersections;
+    }
+    public static MapLocation[] intersectionPoints(BulletInfo bullet, BodyInfo body) {
+    	return intersectionPoints(bullet, body.getLocation(), body.getRadius());
+    }
+    public static MapLocation[] intersectionPoints(BulletInfo bullet, RobotController rc) {
+    	return intersectionPoints(bullet, rc.getLocation(), rc.getType().bodyRadius);
+    }
+    private static float[] intersectionLambda(BulletInfo bullet, MapLocation C, float r) {
+    	float dx = bullet.getDir().getDeltaX(1), dy = bullet.getDir().getDeltaY(1);
+    	float x = bullet.getLocation().x - C.x, y = bullet.getLocation().y - C.y;
+    	float a = (dx*dx + dy*dy), b = (2*x*dx + 2*y*dy), c = (x*x + y*y - r*r);
+    	float p = (b/a), q = (c/a);
+    	float z = (p/2);
+    	float u = z*z - q;
+    	if(u < 0) return null;
+    	float s = (float) Math.sqrt(u);
 
-        return null;
+    	float t1 = (s - z), t2 = (-1)*(s + z);
+    	return new float[]{t1, t2};
     }
 
 
-    public static MapLocation getHitLocation(MapLocation A, MapLocation B, MapLocation C, float r) {
-        if(A == null || B == null || C == null || r <= 0) return null;
 
-        // calculate point L with CL perpendicular to AB
-        float DAB = A.distanceTo(B);
-        float ABx = ((B.x - A.x) / DAB), ABy = ((B.y - A.y) / DAB);
-        float t = ABx*(C.x - A.x) + ABy*(C.y - A.y);
-        float Lx = t*ABx + A.x, Ly = t*ABy + A.y;
-        MapLocation L = new MapLocation(Lx, Ly);
-
-        // check if the direction is towards (C,r)
-        Direction AB = A.directionTo(B);
-        Direction AL = A.directionTo(L);
-        if(AB.degreesBetween(AL) <= 2) return L;
-        return null;
+    public static Direction getPerpendicularDirection(Direction dir) {
+    	return dir.rotateLeftDegrees(90);
     }
-    public static MapLocation getHitLocation(BulletInfo bullet, MapLocation C, float r) {
-        if(bullet == null || C == null || r <= 0) return null;
-        return getHitLocation(bullet.getLocation(), bullet.getLocation().add(bullet.getDir(), bullet.getSpeed()), C, r);
+    public static Direction getPerpendicularAwayFromBullet(BulletInfo bullet, MapLocation loc) {
+    	Direction dir = bullet.getDir().rotateLeftDegrees(90);
+    	float currDist = loc.distanceTo(bullet.getLocation());
+    	float nextDist = loc.add(dir).distanceTo(bullet.getLocation());
+    	return (currDist < nextDist) ? dir : dir.opposite();
     }
-    public static MapLocation getHitLocation(BulletInfo bullet, BodyInfo body) {
-        if(bullet == null || body == null) return null;
-        return getHitLocation(bullet, body.getLocation(), body.getRadius());
-    }
-    public static MapLocation getHitLocation(BulletInfo bullet, RobotController rc) {
-    	return getHitLocation(bullet, rc.getLocation(), rc.getType().bodyRadius);
-    }
-
 
 
 }
