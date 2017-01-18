@@ -2,6 +2,7 @@ package shepherd.Bot.Utilities;
 
 
 import battlecode.common.GameConstants;
+import battlecode.common.MapLocation;
 import battlecode.common.RobotInfo;
 import battlecode.common.RobotType;
 
@@ -89,6 +90,30 @@ public class Util {
 		if(!type.canAttack()) return 0;
 		if(type == RobotType.LUMBERJACK) return type.strideRadius + GameConstants.LUMBERJACK_STRIKE_RADIUS;
 		return type.bodyRadius + type.strideRadius + type.bulletSpeed + GameConstants.BULLET_SPAWN_OFFSET;
+	}
+
+
+
+	/*
+	 * returns two integers representing the maplocation's x and y location
+	 */
+	public static int[] getLocation(MapLocation location) {
+		return new int[]{Float.floatToIntBits(location.x), Float.floatToIntBits(location.y)};
+	}
+
+	/*
+	 * returns a maplocation from two given ints
+	 */
+	public static MapLocation getLocation(int x, int y) {
+		return new MapLocation(Float.intBitsToFloat(x), Float.intBitsToFloat(y));
+	}
+
+
+	/*
+	 * returns a maplocation from the first two ints of given int array
+	 */
+	public static MapLocation getLocation(int[] ints) {
+		return getLocation(ints[0], ints[1]);
 	}
 
 }
