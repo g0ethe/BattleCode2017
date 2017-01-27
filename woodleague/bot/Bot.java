@@ -58,7 +58,7 @@ public class Bot {
 
 
 	public static void flockMove(float c, float s, float a, float v, MapLocation target) throws GameActionException {
-		// precalculations for alignment, cohesion, and seperation
+		// precalculations for alignment, cohesion, and separation
 		RobotInfo[] alliedRobots = rc.senseNearbyRobots(rc.getType().sensorRadius, rc.getTeam());
 		Direction[] alignmentDirs = new Direction[alliedRobots.length];
 		Direction[] separationDirs = new Direction[alliedRobots.length];
@@ -66,7 +66,8 @@ public class Bot {
 		float[] alignmentWeigths = new float[alliedRobots.length];
 		float x = 0, y = 0; int i = 0;
 		for(RobotInfo robot : alliedRobots) {
-			if(robot.getType() != RobotType.LUMBERJACK) continue;
+			// don't align with our economy robots, they shouldn't even be near the enemy
+			if(robot.getType() == RobotType.GARDENER || robot.getType() == RobotType.ARCHON) continue;
 
 			// cohesion
 			MapLocation current = robot.getLocation();

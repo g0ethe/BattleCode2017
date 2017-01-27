@@ -4,89 +4,150 @@ import battlecode.common.Clock;
 import battlecode.common.Direction;
 import battlecode.common.GameActionException;
 import battlecode.common.GameConstants;
-import battlecode.common.RobotType;
+import battlecode.common.MapLocation;
 import battlecode.common.TreeInfo;
 import woodleague.bot.Bot;
 import woodleague.util.Broadcast;
 import woodleague.util.GameState;
 
+
 public class Gardener extends Bot {
 
-	public enum Buildable {
-		TREE, LUMBERJACK, SCOUT, SOLDIER, TANK
-	}
+    public enum Buildable {
+        TREE, LUMBERJACK, SCOUT, SOLDIER, TANK
+    }
 
-	public static void run() throws GameActionException {
-		while(true) {
-			long turn = rc.getRoundNum();
+    public static void run() throws GameActionException {
+        while(true) {
+            long turn = rc.getRoundNum();
 
-			Broadcast.updateUnitCount();
-			Buildable toBuild = getToBuild();
-			build(toBuild);
-			water();
+            Broadcast.updateUnitCount();
+            MapLocation opening = farm();
+            if(opening != null) rc.setIndicatorDot(opening, 255, 255, 255);
 
-			if(turn == rc.getRoundNum()) Clock.yield();
-		}
-	}
+            if(turn == rc.getRoundNum()) Clock.yield();
+        }
+    }
 
-	private static void water() throws GameActionException {
-		TreeInfo[] trees = rc.senseNearbyTrees(rc.getType().sensorRadius, rc.getTeam());
-		if(trees.length != 0) {
-			for(TreeInfo tree : trees) {
-				if(rc.canWater(tree.getID()) && tree.getHealth() <= tree.getMaxHealth() - GameConstants.WATER_HEALTH_REGEN_RATE)
-					rc.water(tree.getID());
-			}
-		}
+    /*
+     * runs in a circle and plants trees, watering them
+     * returns opening location, once all trees are built
+     * returns null if flower not yet complete
+     * TODO: find a better flowerCenter (away from map edges)
+     */
+    private static MapLocation[] petalLocations;
+    private static float petalPlantDistance;
+    private static MapLocation farm() throws GameActionException {
 
-	}
+        // calculate flower:
+        // alpha: 		 angle for circular movement inside the flower
+        // beta: 		 angle between to neighboring trees (measured from flower center)
+        // flowerRadius: distance from center point, on which the centers of trees will be built
+        // innerRadius:  the radius of the circle, a gardener can walk in 10 turns
+        float turnsToWater = GameConstants.WATER_HEALTH_REGEN_RATE / GameConstants.BULLET_TREE_DECAY_RATE;
+        float innerPerimeter = rc.getType().strideRadius * turnsToWater;
+        float innerRadius = (float) (innerPerimeter / (2*Math.PI));
+        float outerRadius = innerRadius + rc.getType().bodyRadius;
+        float flowerRadius = outerRadius + GameConstants.BULLET_TREE_RADIUS;
+        float flowerPerimeter = (float) (2*Math.PI*flowerRadius);
+        float stride = rc.getType().strideRadius;
+        float alpha = (float) Math.abs(Math.acos( (stride * stride) / (2*stride*innerRadius)));
+        float beta = (float) Math.abs(Math.acos( 1 - (2*GameConstants.BULLET_TREE_RADIUS*GameConstants.BULLET_TREE_RADIUS)/(flowerRadius*flowerRadius) ));
+        int treesPerFlower = (int) (flowerPerimeter / (2*GameConstants.BULLET_TREE_RADIUS)) - 1;
+        Direction flowerDir = GameState.mySpawn.directionTo(GameState.enemyCenter).opposite();
+        MapLocation flowerCenter = GameState.mySpawn.add(flowerDir, innerRadius);
+        Direction circular = (rc.getLocation().directionTo(flowerCenter)).rotateRightRads(alpha);
 
-	private static int index = 0;
-	private static Buildable getToBuild() throws GameActionException {
+        // initial building: build a tree in any direction, flowerRadius away from flowerCenter
+        TreeInfo[] trees = rc.senseNearbyTrees(flowerCenter, flowerRadius, rc.getTeam());
+        if(trees.length == 0) {
+            // assuming we defined the flowerCenter in a way that we are now guaranteed to be
+            // on the inner circle of the future flower
+            Direction awayFromCenter = flowerCenter.directionTo(rc.getLocation());
+            if(rc.canPlantTree(awayFromCenter)) { rc.plantTree(awayFromCenter); }
 
-		// TODO build order
-		Buildable[] buildOrder = new Buildable[]{
-				Buildable.SCOUT,
-				Buildable.SCOUT,
-				Buildable.SCOUT,
-				Buildable.LUMBERJACK,
-				Buildable.LUMBERJACK,
-				Buildable.LUMBERJACK,
-				Buildable.TREE,
-				Buildable.LUMBERJACK,
-				Buildable.TREE,
-				Buildable.TREE,
-				Buildable.LUMBERJACK,
-				Buildable.LUMBERJACK,
-				Buildable.LUMBERJACK};
-		if(GameState.canWinByPoints()) rc.donate(rc.getTeamBullets());
-		if(index == buildOrder.length) index = 0;
-		return buildOrder[index];
-	}
+            // get the tree we just planted and outline the location of other trees in this flower
+            trees = rc.senseNearbyTrees(flowerCenter, flowerRadius, rc.getTeam());
+            if(trees.length > 0) {
+                Direction dir = flowerCenter.directionTo(trees[0].getLocation());
+                float dist = flowerCenter.distanceTo(trees[0].getLocation());
+                petalLocations = new MapLocation[treesPerFlower];
+                petalLocations[0] = trees[0].getLocation();
+                petalPlantDistance = rc.getLocation().distanceTo(flowerCenter);
+                for(int i = 1; i < treesPerFlower; i++) {
+                    petalLocations[i] = flowerCenter.add(dir.rotateLeftRads(beta * i), dist);
+                    rc.setIndicatorDot( petalLocations[i], 255-i, 0, 0);
+                }
+            }
+        }
 
-	private static void build(Buildable type) throws GameActionException {
-		switch(type) {
-		case TREE: plantTree(); break;
-		case LUMBERJACK: build(RobotType.LUMBERJACK); break;
-		case SCOUT: build(RobotType.SCOUT); break;
-		case SOLDIER: build(RobotType.SOLDIER); break;
-		case TANK: build(RobotType.TANK); break;
-		}
-	}
+        // move to other petal Planting Locations and plant trees from there, away from center,
+        // until 7 trees have been planted
+        if(trees.length < treesPerFlower && rc.isBuildReady() && rc.hasTreeBuildRequirements()) {
 
-	private static void plantTree() throws GameActionException {
-		Direction dir = rc.getLocation().directionTo(GameState.enemyCenter);
-		for(int i = 0; i <= 180; i += 6) {
-			if(rc.canPlantTree(dir.rotateLeftDegrees(i))) { rc.plantTree(dir.rotateLeftDegrees(i)); index++; break; }
-			if(rc.canPlantTree(dir.rotateRightDegrees(i))) { rc.plantTree(dir.rotateRightDegrees(i)); index++; break; }
-		}
-	}
+        	// find nearest, empty plant location
+        	MapLocation nearest = null; float nearestDist = Float.MAX_VALUE;
+            for(int i = petalLocations.length; --i>=0;) {
+                MapLocation curr = petalLocations[i];
+                if(rc.isCircleOccupiedExceptByThisRobot(curr, GameConstants.BULLET_TREE_RADIUS)) {
+                	rc.setIndicatorDot(curr, 255-i, 0, 0);
+                	continue;
+                }
+                rc.setIndicatorDot(curr, 0, 255-i, 0);
+                float d = rc.getLocation().distanceTo(curr);
+                if(d < nearestDist) {
+                	nearestDist = d;
+                	nearest = curr;
+                }
+            }
 
-	private static void build(RobotType type) throws GameActionException {
-		Direction dir = rc.getLocation().directionTo(GameState.enemyCenter);
-		for(int i = 0; i <= 180; i += 6) {
-			if(rc.canBuildRobot(type, dir.rotateLeftDegrees(i))) { rc.buildRobot(type, dir.rotateLeftDegrees(i)); index++; break; }
-			if(rc.canBuildRobot(type, dir.rotateRightDegrees(i))) { rc.buildRobot(type, dir.rotateRightDegrees(i)); index++; break; }
-		}
-	}
+            // move towards a location from which you can plant at the given nearest empty location
+            if(nearest != null) {
+            	rc.setIndicatorDot(nearest, 0, 0, 255);
+            	Direction dir = flowerCenter.directionTo(nearest);
+            	float dist = petalPlantDistance;
+            	MapLocation plantingLocation = flowerCenter.add(dir, dist);
+            	float distBefore = rc.getLocation().distanceTo(nearest), distAfter = 0;
+            	if(!rc.hasMoved() && rc.canMove(plantingLocation)) {
+            		rc.move(plantingLocation);
+            		distAfter = rc.getLocation().distanceTo(nearest);
+            	}
+            	if(rc.getLocation().distanceTo(nearest) <= GameConstants.GENERAL_SPAWN_OFFSET + rc.getType().bodyRadius + GameConstants.BULLET_TREE_RADIUS) {
+            		if(rc.canPlantTree(rc.getLocation().directionTo(nearest)))
+            			rc.plantTree(rc.getLocation().directionTo(nearest));
+            	}
+
+            	// work around the stupid api and floating point shit
+            	if(rc.hasMoved() && distBefore == distAfter && rc.isBuildReady() && rc.hasTreeBuildRequirements()) {
+            		if(rc.canPlantTree(rc.getLocation().directionTo(nearest)))
+            			rc.plantTree(rc.getLocation().directionTo(nearest));
+            		if(rc.canPlantTree(rc.getLocation().directionTo(nearest).rotateLeftRads(0.01f)))
+            			rc.plantTree(rc.getLocation().directionTo(nearest).rotateLeftRads(0.01f));
+            		if(rc.canPlantTree(rc.getLocation().directionTo(nearest).rotateRightRads(0.01f)))
+            			rc.plantTree(rc.getLocation().directionTo(nearest).rotateRightRads(0.01f));
+            	}
+            }
+        }
+
+        // circular movement inside flower to water stuff
+        else if(!rc.hasMoved() && rc.canMove(circular)) rc.move(circular);
+        trees = rc.senseNearbyTrees(flowerCenter, flowerRadius, rc.getTeam());
+        for(TreeInfo tree : trees) {
+        	if(tree.getHealth() <= tree.getMaxHealth() - GameConstants.WATER_HEALTH_REGEN_RATE/2 && rc.canWater(tree.getID()))
+        		rc.water(tree.getID());
+        }
+
+
+
+        // return opening location of flower, or null if flower is not yet complete
+        MapLocation first = petalLocations[0], last = petalLocations[petalLocations.length-1];
+        MapLocation middle = new MapLocation((first.x + last.x)/2 , (first.y + last.y)/2);
+        float dist = flowerCenter.distanceTo(first);
+        Direction dir = flowerCenter.directionTo(middle);
+        return flowerCenter.add(dir, dist);
+    }
+
+
+
 
 }

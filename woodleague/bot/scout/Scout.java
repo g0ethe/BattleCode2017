@@ -10,6 +10,7 @@ import battlecode.common.RobotInfo;
 import battlecode.common.RobotType;
 import battlecode.common.Team;
 import battlecode.common.TreeInfo;
+import sheep.utilities.GameState;
 import woodleague.bot.Bot;
 import woodleague.util.Broadcast;
 import woodleague.util.Util;
@@ -136,7 +137,7 @@ public class Scout extends Bot {
     	}
 
     	// in case we haven't attacked and there's a lone archon in attack range, while we have some spare bullets, poke it a bit
-    	if(!rc.hasAttacked() && armyCount == 0 && gardener == null && archon != null && rc.canFireSingleShot() && rc.getTeamBullets() > 100) {
+    	if(!rc.hasAttacked() && armyCount == 0 && gardener == null && archon != null && rc.canFireSingleShot() && rc.getTeamBullets() > 200 + GameState.scoutCount) {
     		if(Util.isLineFreeFromOwnUnits(archon)) {
 				float distToTarget = rc.getLocation().distanceTo(archon.getLocation());
     			float rangeOfBullet = rc.getType().bulletSpeed + rc.getType().bodyRadius + GameConstants.BULLET_SPAWN_OFFSET + archon.getType().bodyRadius - Float.MIN_NORMAL;
